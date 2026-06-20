@@ -24,6 +24,9 @@ const CptPointsDemo = () => {
   if (error) throw new Error(`Failed to load CPT data: ${error}`);
   if (!data) return null;
   console.log(data);
+
+  if (!data) return null;
+
   return (
     <points position={[0, 0, 0]}>
       <bufferGeometry>
@@ -33,7 +36,7 @@ const CptPointsDemo = () => {
         />
         <bufferAttribute attach="attributes-color" args={[data.colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={4} vertexColors sizeAttenuation />
+      <pointsMaterial size={1} vertexColors />
     </points>
   );
 };
