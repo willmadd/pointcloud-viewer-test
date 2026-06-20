@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import { load } from "@loaders.gl/core";
 import { CPTLoader } from "../utils/CptLoader";
+import { navigation } from "../constants/navigation";
+import { useUiStore } from "../store/useUiStore";
 
 type CPTData = {
   pointCount: number;
@@ -15,11 +17,19 @@ const CptPointsDemo = () => {
   const [data, setData] = useState<CPTData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const debugMode = useUiStore((state) => state.debugMode);
+
   useEffect(() => {
-    load("/api/small_cloud.cpt", CPTLoader)
+    load(
+      //if debugging get small cloud, else get large cloud
+      navigation.api.getFile(navigation.files.smallCloud),
+      CPTLoader,
+    )
       .then((result) => setData(result as CPTData))
-      .catch((e) => setError(e.message));
-  }, []);
+      .catch((e) => {
+        throw new Error(`Failed to load CPT data: ${e.message}`);
+      });
+  }, [debugMode]);
   console.log(error);
   if (error) throw new Error(`Failed to load CPT data: ${error}`);
   if (!data) return null;
