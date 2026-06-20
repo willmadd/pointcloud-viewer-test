@@ -6,14 +6,15 @@ import React from "react";
 import PointCloud from "./PointCloud";
 import { PerfMonitor } from "r3f-monitor";
 import { useUiStore } from "../store/useUiStore";
+import LoadingSpinner from "./atoms/Loading";
 
-type Props = {};
-
-const Scene = (props: Props) => {
+const Scene = () => {
   const debugMode = useUiStore((state) => state.debugMode);
+  const isLoading = useUiStore((state) => state.isLoading);
 
   return (
     <div className="h-screen w-screen bg-zinc-700">
+      {isLoading && <LoadingSpinner label={"Loading point cloud"} />}
       <Canvas>
         {debugMode && <PerfMonitor position="bottom-right" />}
         <PointCloud />

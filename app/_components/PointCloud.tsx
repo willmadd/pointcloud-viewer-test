@@ -15,11 +15,12 @@ type CPTData = {
 
 const CptPointsDemo = () => {
   const [data, setData] = useState<CPTData | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const debugMode = useUiStore((state) => state.debugMode);
+  const setIsLoading = useUiStore((state) => state.setLoading);
 
   useEffect(() => {
+    setIsLoading("Loading point cloud data...");
     load(
       //if debugging get small cloud, else get large cloud
       navigation.api.getFile(navigation.files.smallCloud),
@@ -28,12 +29,11 @@ const CptPointsDemo = () => {
       .then((result) => setData(result as CPTData))
       .catch((e) => {
         throw new Error(`Failed to load CPT data: ${e.message}`);
-      });
+      })
+      .finally(() => setIsLoading(null));
   }, [debugMode]);
-  console.log(error);
-  if (error) throw new Error(`Failed to load CPT data: ${error}`);
+
   if (!data) return null;
-  console.log(data);
 
   if (!data) return null;
 
