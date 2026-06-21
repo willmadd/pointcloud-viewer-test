@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadInBatches } from "@loaders.gl/core";
-import { ThreeEvent } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 import { CPTLoader } from "../utils/CptLoader";
 import { useUiStore } from "../store/useUiStore";
+import { usePointCloudClickHandler } from "./hooks/usePointCloudClickHandler";
 
 type CPTBatch = {
   pointCount: number;
@@ -25,7 +26,6 @@ type Buffers = {
  * Mark a section of the buffer as changed so only that range
  * is uploaded to the GPU instead of the entire buffer.
  */
-
 const markAttributeRangeForUpdate = (
   attribute: THREE.BufferAttribute,
   offset: number,
@@ -44,16 +44,14 @@ const PointCloud = () => {
 
   const loadedPointCountRef = useRef(0);
 
-  const selectedPointRef = useRef<{
-    index: number;
-    color: THREE.Vector3;
-  } | null>(null);
-
   const setLoading = useUiStore((state) => state.setLoading);
-  const setSelectedPoint = useUiStore((state) => state.setSelectedPoint);
   const setLoadingPercentage = useUiStore(
     (state) => state.setLoadingPercentage,
   );
+
+  const { camera, gl } = useThree();
+
+  usePointCloudClickHandler({ camera, gl, geometryRef, pointsRef });
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +89,6 @@ const PointCloud = () => {
           /**
            * set buffers into array for first chunk only. in additional chunks we will update the existing buffers, rather than rerendering new buffers
            */
-
           setBuffers({
             positions,
             colors,
@@ -124,7 +121,6 @@ const PointCloud = () => {
           /**
            * Mark latest chunks as changed so Three.js uploads them to the GPU
            */
-
           markAttributeRangeForUpdate(
             positionAttr,
             batchStartPoint * 3,
@@ -182,90 +178,14 @@ const PointCloud = () => {
      * Recalculate the geometry bounds after new points have
      * been added. Needed for raycasting to work
      */
-
     geometry.computeBoundingSphere();
   }, [buffers]);
-
-  const handlePointClick = (event: ThreeEvent<MouseEvent>) => {
-    /**
-     * handle pointer click. I'm not completely happy with this. It kind of works ok, however ideally some kind of chunking would be good
-     * potentially there could be a huge number of points that it would have to iterate through.
-     */
-    event.stopPropagation();
-
-    /**
-     * Get all points that intersect click
-     */
-    const closest = event.intersections.find(
-      (i) => i.object === event.object && i.index !== undefined,
-    );
-
-    /**
-     * if nothing selected, return;
-     */
-    if (!closest || closest.index === undefined || !geometryRef.current) return;
-
-    const index = closest.index;
-
-    /**
-     * Get cols and pos attributes and send to global state
-     */
-    const colorAttr = geometryRef.current.getAttribute(
-      "color",
-    ) as THREE.BufferAttribute;
-
-    const positionAttr = geometryRef.current.getAttribute(
-      "position",
-    ) as THREE.BufferAttribute;
-
-    const x = positionAttr.getX(index);
-    const y = positionAttr.getY(index);
-    const z = positionAttr.getZ(index);
-
-    const r = colorAttr.getX(index);
-    const g = colorAttr.getY(index);
-    const b = colorAttr.getZ(index);
-
-    /**
-     * Restore previous point colour
-     */
-    if (selectedPointRef.current) {
-      const previousIndex = selectedPointRef.current.index;
-      const previousColor = selectedPointRef.current.color;
-
-      colorAttr.setXYZ(
-        previousIndex,
-        previousColor.x,
-        previousColor.y,
-        previousColor.z,
-      );
-
-      markAttributeRangeForUpdate(colorAttr, previousIndex * 3, 3);
-    }
-
-    setSelectedPoint({
-      index,
-      position: new THREE.Vector3(x, y, z),
-      color: new THREE.Vector3(r, g, b),
-    });
-
-    selectedPointRef.current = {
-      index,
-      color: new THREE.Vector3(r, g, b),
-    };
-
-    /**
-     * Colour selected point red
-     */
-    colorAttr.setXYZ(index, 1, 0, 0);
-    markAttributeRangeForUpdate(colorAttr, index * 3, 3);
-  };
 
   if (error) throw error;
   if (!buffers) return null;
 
   return (
-    <points ref={pointsRef} onPointerDown={handlePointClick}>
+    <points ref={pointsRef}>
       <bufferGeometry ref={geometryRef}>
         <bufferAttribute
           attach="attributes-position"

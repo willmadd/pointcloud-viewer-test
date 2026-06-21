@@ -21,18 +21,7 @@ const Scene = () => {
     <div className="h-screen w-screen bg-zinc-700">
       <SelectedPointModal />
       {loader && <LoadingSpinner />}
-      <Canvas
-        /**
-         * Giving the points a hitslop so they can be raycasted
-         */
-        raycaster={{
-          params: {
-            Points: {
-              threshold: 0.1,
-            },
-          } as THREE.RaycasterParameters,
-        }}
-      >
+      <Canvas>
         {debugMode && <PerfMonitor position="bottom-right" />}
         <PointCloud />
         <Lighting />
