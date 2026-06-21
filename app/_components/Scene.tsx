@@ -14,7 +14,7 @@ const Scene = () => {
 
   return (
     <div className="h-screen w-screen bg-zinc-700">
-      {(loader || true) && <LoadingSpinner />}
+      {loader && <LoadingSpinner />}
       <Canvas>
         {debugMode && <PerfMonitor position="bottom-right" />}
         <PointCloud />
@@ -23,7 +23,12 @@ const Scene = () => {
         <spotLight intensity={270} position={[-10, 10, -10]} />
         <PerspectiveCamera makeDefault position={[0, 0, 500]} />
 
-        <OrbitControls target={[0, 0, 0]} enableDamping makeDefault />
+        <OrbitControls
+          enabled={!loader}
+          target={[0, 0, 0]}
+          enableDamping
+          makeDefault
+        />
       </Canvas>
     </div>
   );
