@@ -173,7 +173,16 @@ const PointCloud = () => {
 
     if (!geometry) return;
 
+    /**
+     * Update the number of points Three.js should render.
+     */
     geometry.setDrawRange(0, loadedPointCountRef.current);
+
+    /**
+     * Recalculate the geometry bounds after new points have
+     * been added. Needed for raycasting to work
+     */
+
     geometry.computeBoundingSphere();
   }, [buffers]);
 
