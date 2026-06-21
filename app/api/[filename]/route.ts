@@ -6,14 +6,23 @@ export const GET = async (
   request: Request,
   { params }: { params: Promise<{ filename: string }> },
 ) => {
+  /**
+   * Receive file name
+   */
   const { filename } = await params;
 
+  /**
+   * Make file path
+   */
   const filePath = path.join(process.cwd(), "app/data", filename);
 
   if (!existsSync(filePath)) {
     return Response.json({ error: "File not found" }, { status: 404 });
   }
 
+  /**
+   * Create Stream from file
+   */
   const nodeStream = createReadStream(filePath);
   const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
@@ -23,3 +32,7 @@ export const GET = async (
     },
   });
 };
+
+/**
+ * TODO: Better error handing if invalid file etc
+ */

@@ -1,5 +1,9 @@
 import { create } from "zustand";
 
+/**
+ * Zustand store used to store various UI Aspects, e.g. weather app is loading or in debug mode
+ */
+
 type Loader = {
   message: string;
   percentage: number;

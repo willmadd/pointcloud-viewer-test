@@ -1,7 +1,15 @@
+import { Vector3 } from "three";
+
 const BATCH_POINTS = 50_000;
 const LITTLE_ENDIAN = true;
 
 const HEADER_BYTES = 80;
+
+/**
+ * Byte offsets used to locate header and point data within the CPT binary format.
+ * Values obtained from sensat github - https://github.com/sensat/pointcloud-viewer-test
+ */
+
 const OFFSET_POINT_COUNT = 24;
 const OFFSET_SCALE_X = 32;
 const OFFSET_SCALE_Y = 40;
@@ -34,10 +42,14 @@ type CPTBatch = {
   positions: Float32Array;
   colors: Float32Array;
   header: CPTHeader;
-  origin: [number, number, number];
+  origin: Vector3;
 };
 
 const parseHeader = (view: DataView): CPTHeader => {
+  /**
+   * Read and validate the CPT file signature. Stored in the first 4 bytes of the file.
+   * Check file format is as expected a .cpt file.
+   */
   const magic = String.fromCharCode(
     view.getUint8(0),
     view.getUint8(1),
@@ -49,6 +61,10 @@ const parseHeader = (view: DataView): CPTHeader => {
     throw new Error(`Invalid CPT magic: ${magic}`);
   }
 
+  /**
+   * Read point count, coordinate scales and coordinate offsets
+   * from the .cpt file header.
+   */
   return {
     pointCount: Number(view.getBigUint64(OFFSET_POINT_COUNT, LITTLE_ENDIAN)),
     xScale: view.getFloat64(OFFSET_SCALE_X, LITTLE_ENDIAN),
@@ -60,11 +76,17 @@ const parseHeader = (view: DataView): CPTHeader => {
   };
 };
 
+/**
+ * Fix type error, where a chunk may have been a ArrayBuffer, or a Uint8Array
+ */
 const toUint8Array = (chunk: ArrayBuffer | Uint8Array) => {
   if (chunk instanceof Uint8Array) return chunk;
   return new Uint8Array(chunk);
 };
 
+/**
+ * Add a newly streamed chunk onto the existing buffer.
+ */
 const concat = (a: Uint8Array, b: Uint8Array) => {
   const next = new Uint8Array(a.length + b.length);
   next.set(a);
@@ -72,6 +94,9 @@ const concat = (a: Uint8Array, b: Uint8Array) => {
   return next;
 };
 
+/**
+ * Generator function that streams and passes .cpt point cloud data
+ */
 async function* parseCPTInBatches(
   chunks: AsyncIterable<ArrayBuffer | Uint8Array>,
 ): AsyncGenerator<CPTBatch> {
@@ -79,18 +104,24 @@ async function* parseCPTInBatches(
   let header: CPTHeader | null = null;
   let parsedPoints = 0;
 
-  let origin: [number, number, number] | null = null;
+  let origin: Vector3 | null = null;
 
   for await (const chunk of chunks) {
     buffer = concat(buffer, toUint8Array(chunk));
 
+    /**
+     * What until header has been received, in this case the 80 bytes, then parse it.
+     */
     if (!header && buffer.length >= HEADER_BYTES) {
       header = parseHeader(
         new DataView(buffer.buffer, buffer.byteOffset, HEADER_BYTES),
       );
 
-      origin = [header.xOffset, header.yOffset, header.zOffset];
+      origin = new Vector3(header.xOffset, header.yOffset, header.zOffset);
 
+      /**
+       *   Remove the header bytes from the buffer so only point data remains to be processed.
+       */
       buffer = buffer.slice(HEADER_BYTES);
     }
 
@@ -99,21 +130,38 @@ async function* parseCPTInBatches(
     while (buffer.length >= POINT_BYTES && parsedPoints < header.pointCount) {
       const availablePoints = Math.floor(buffer.length / POINT_BYTES);
 
+      /**
+       * Work out how many points we are going to parse, limited by either the points currently available in the buffer (availablePoints), the batch size specified
+       * about (BATCH_POINTS) or the the number of points remaining in the file (header.pointCount - parsedPoints,)
+       */
       const pointsToParse = Math.min(
         availablePoints,
         BATCH_POINTS,
         header.pointCount - parsedPoints,
       );
 
+      /**
+       * End parsing once complete
+       */
       if (pointsToParse <= 0) break;
 
+      /**
+       * Allocate output buffers for this batch and create a DataView
+       * for reading binary values from the streamed CPT data.
+       */
       const positions = new Float32Array(pointsToParse * 3);
       const colors = new Float32Array(pointsToParse * 3);
       const view = new DataView(buffer.buffer, buffer.byteOffset);
 
       for (let i = 0; i < pointsToParse; i++) {
+        /**
+         * Get byte position of current point from buffer
+         */
         const base = i * POINT_BYTES;
 
+        /**
+         * Use scale and offset from the header: "final_value = (stored_uint32 * scale) + offset"
+         */
         const worldX =
           view.getUint32(base + OFFSET_X, LITTLE_ENDIAN) * header.xScale +
           header.xOffset;
@@ -126,14 +174,21 @@ async function* parseCPTInBatches(
           view.getUint32(base + OFFSET_Z, LITTLE_ENDIAN) * header.zScale +
           header.zOffset;
 
-        const localX = worldX - origin[0];
-        const localY = worldY - origin[1];
-        const localZ = worldZ - origin[2];
+        /**
+         * converts to local space positions
+         */
+
+        const localX = worldX - origin.x;
+        const localY = worldY - origin.y;
+        const localZ = worldZ - origin.z;
 
         positions[i * 3 + 0] = localX;
         positions[i * 3 + 1] = localY;
         positions[i * 3 + 2] = localZ;
 
+        /**
+         * convert colour values from 0-255 to 0-1 values required by webgl/three
+         */
         colors[i * 3 + 0] = view.getUint8(base + OFFSET_RED) / 255;
         colors[i * 3 + 1] = view.getUint8(base + OFFSET_GREEN) / 255;
         colors[i * 3 + 2] = view.getUint8(base + OFFSET_BLUE) / 255;

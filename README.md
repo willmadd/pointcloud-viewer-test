@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Point Cloud Viewer
+
+This project is a prototype point cloud viewer built using Next.js, React, Three.js, and React Three Fiber.
+
+## Technology Choices
+
+Although the original specification suggested Angular, I chose to build this project using React and React Three Fiber.
+
+The primary reason for this decision is that React is the framework I use professionally on a daily basis, allowing me to focus my time on solving the technical challenges of the exercise rather than learning a new framework from scratch. My goal was to demonstrate my approach to loading, parsing, streaming and rendering large point cloud datasets as effectively as possible.
+
+React Three Fiber (R3F) is a React renderer for Three.js. Rather than being a separate 3D engine, it is effectively a React abstraction over Three.js, with most concepts mapping directly to their Three.js equivalents. Knowledge gained in R3F transfers directly to Three.js and vice versa.
+
+I am aware that Angular is used within the company and would be happy to learn and work with Angular should I be successful in the application process. For the purposes of this exercise, I felt it was more valuable to demonstrate my understanding of 3D rendering, data streaming, and application architecture using technologies I already know well.
+
+## Features
+
+- Streaming point cloud loading
+- Custom CPT file parser
+- Progressive rendering while data loads
+- Real-time loading progress indicator
+- Orbit camera controls
+- Vertex colour rendering
+- Efficient typed-array based memory management
+- Local coordinate transformation for improved rendering precision
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+yarn install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run the development server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+yarn dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open:
 
-## Learn More
+```text
+http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The CPT loader streams point data in batches and progressively updates the rendered point cloud. Point coordinates are reconstructed using the scale and offset values stored in the CPT header before being converted into local coordinates for rendering. This helps avoid floating-point precision issues commonly encountered when working with large geospatial coordinate systems.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The focus of this exercise was correctness, readability, and demonstrating an understanding of handling large point cloud datasets in the browser.
