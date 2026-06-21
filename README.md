@@ -34,6 +34,10 @@ http://localhost:3000
 
 in your browser.
 
+## Known Issues
+
+When selecting a point, currently on occasions the non top most point is selected which isn't visible
+
 ## Performance Considerations
 
 Currently we render all points, however this is probably for our use case. Ideally we need to look at level of details, i.e. only rendering every 4th/8th/16th point on lower powered devices, which we can check check fps of device using Performance Monitor and then filter out points, reload points in as needed
