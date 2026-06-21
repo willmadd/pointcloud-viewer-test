@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Point Cloud Viewer
+
+This project is a prototype point cloud viewer built using Next.js, React, Three.js, and React Three Fiber.
+
+## Technology Choices
+
+Although the original specification suggested Angular, I chose to build this project using React and React Three Fiber.
+
+The primary reason for this decision is that React is the framework I use professionally on a daily basis, allowing me to focus my time on solving the technical challenges of the exercise rather than learning a new framework from scratch. My goal was to demonstrate my approach to loading, parsing, streaming and rendering large point cloud datasets as effectively as possible.
+
+React Three Fiber (R3F) is a React renderer for Three.js. Rather than being a separate 3D engine, it is effectively a React abstraction over Three.js, with most concepts mapping directly to their Three.js equivalents. Knowledge gained in R3F transfers directly to Three.js and vice versa.
+
+I am aware that Angular is used within the company and would be happy to learn and work with Angular should I be successful in the application process. For the purposes of this exercise, I felt it was more valuable to demonstrate my understanding of 3D rendering, data streaming, and application architecture using technologies I already know well.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+yarn install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run the development server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+yarn dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open:
 
-## Learn More
+```text
+http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Performance Considerations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Currently we render all points, however this is probably for our use case. Ideally we need to look at level of details, i.e. only rendering every 4th/8th/16th point on lower powered devices, which we can check check fps of device using Performance Monitor and then filter out points, reload points in as needed
 
-## Deploy on Vercel
+Another option would be to only load points that are nearest the camera
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+As mentioned in the code notes, I am not massively happy with the point raycasting to select a point, there is no upper limit on the amount of points that could be intersected, again some kind of chunking with spatial indexing could be used so we only check the spatial index nearest the camera.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+It is also apparent there are quite a few artifacts in the point cloud, these would ideally need tidying up, maybe by checking for neighbour points, if there's not many then assume they are incorrect, and remove them from the scene
+
+## Further improvements
+
+- Current error handing is basic. The BE is not checking that the file is valid type before streaming it, we do check that it exists. But it's not very robust.
+
+- We don't check that all chunks are received in tact from the BE as well.
+
+- Camera alignment could be improved, and the axis directions are not immediately obvious to the user.
+
+## Notes
+
+The CPT loader streams point data in batches and progressively updates the rendered point cloud. Point coordinates are reconstructed using the scale and offset values stored in the CPT header before being converted into local coordinates for rendering.
+
+The focus of this exercise was correctness, readability, and demonstrating an understanding of handling large point cloud datasets in the browser.
