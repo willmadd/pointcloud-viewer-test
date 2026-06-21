@@ -12,17 +12,6 @@ React Three Fiber (R3F) is a React renderer for Three.js. Rather than being a se
 
 I am aware that Angular is used within the company and would be happy to learn and work with Angular should I be successful in the application process. For the purposes of this exercise, I felt it was more valuable to demonstrate my understanding of 3D rendering, data streaming, and application architecture using technologies I already know well.
 
-## Features
-
-- Streaming point cloud loading
-- Custom CPT file parser
-- Progressive rendering while data loads
-- Real-time loading progress indicator
-- Orbit camera controls
-- Vertex colour rendering
-- Efficient typed-array based memory management
-- Local coordinate transformation for improved rendering precision
-
 ## Getting Started
 
 Install dependencies:
@@ -45,8 +34,26 @@ http://localhost:3000
 
 in your browser.
 
+## Performance Considerations
+
+Currently we render all points, however this is probably for our use case. Ideally we need to look at level of details, i.e. only rendering every 4th/8th/16th point on lower powered devices, which we can check check fps of device using Performance Monitor and then filter out points, reload points in as needed
+
+Another option would be to only load points that are nearest the camera
+
+As mentioned in the code notes, I am not massively happy with the point raycasting to select a point, there is no upper limit on the amount of points that could be intersected, again some kind of chunking with spatial indexing could be used so we only check the spatial index nearest the camera.
+
+It is also apparent there are quite a few artifacts in the point cloud, these would ideally need tidying up, maybe by checking for neighbour points, if there's not many then assume they are incorrect, and remove them from the scene
+
+## Further improvements
+
+- Current error handing is basic. The BE is not checking that the file is valid type before streaming it, we do check that it exists. But it's not very robust.
+
+- We don't check that all chunks are received in tact from the BE as well.
+
+- Camera alignment could be improved, and the axis directions are not immediately obvious to the user.
+
 ## Notes
 
-The CPT loader streams point data in batches and progressively updates the rendered point cloud. Point coordinates are reconstructed using the scale and offset values stored in the CPT header before being converted into local coordinates for rendering. This helps avoid floating-point precision issues commonly encountered when working with large geospatial coordinate systems.
+The CPT loader streams point data in batches and progressively updates the rendered point cloud. Point coordinates are reconstructed using the scale and offset values stored in the CPT header before being converted into local coordinates for rendering.
 
 The focus of this exercise was correctness, readability, and demonstrating an understanding of handling large point cloud datasets in the browser.
