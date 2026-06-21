@@ -9,7 +9,7 @@ export const navigation = {
     getFile: (filename: string) => `/api/${filename}`,
   },
   files: {
-    smallCloud: "/small_cloud.cpt",
-    bigCloud: "/big_cloud.cpt",
+    smallCloud: "small_cloud.cpt",
+    bigCloud: "big_cloud.cpt",
   },
 };

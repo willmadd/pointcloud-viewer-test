@@ -21,8 +21,9 @@ const Scene = () => {
         <ambientLight intensity={0.6} />
         <pointLight intensity={120} position={[10, 10, 10]} />
         <spotLight intensity={270} position={[-10, 10, -10]} />
-        <PerspectiveCamera makeDefault position={[544663, 258086, 12 + 500]} />
-        <OrbitControls target={[544663, 258086, 12]} />
+        <PerspectiveCamera makeDefault position={[0, 10, 500]} />
+
+        <OrbitControls target={[0, 0, 0]} enableDamping makeDefault />
       </Canvas>
     </div>
   );

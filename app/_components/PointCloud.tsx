@@ -1,11 +1,16 @@
-// components/CptPointsDemo.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { load } from "@loaders.gl/core";
+import { loadInBatches } from "@loaders.gl/core";
 import { CPTLoader } from "../utils/CptLoader";
-import { navigation } from "../constants/navigation";
 import { useUiStore } from "../store/useUiStore";
+
+type CPTBatch = {
+  pointCount: number;
+  totalPointCount: number;
+  positions: Float32Array;
+  colors: Float32Array;
+};
 
 type CPTData = {
   pointCount: number;
@@ -13,32 +18,60 @@ type CPTData = {
   colors: Float32Array;
 };
 
-const CptPointsDemo = () => {
+const PointCloud = () => {
   const [data, setData] = useState<CPTData | null>(null);
-
-  const debugMode = useUiStore((state) => state.debugMode);
   const setIsLoading = useUiStore((state) => state.setLoading);
-
   useEffect(() => {
-    setIsLoading("Loading point cloud data...");
-    load(
-      //if debugging get small cloud, else get large cloud
-      navigation.api.getFile(navigation.files.smallCloud),
-      CPTLoader,
-    )
-      .then((result) => setData(result as CPTData))
-      .catch((e) => {
-        throw new Error(`Failed to load CPT data: ${e.message}`);
+    let cancelled = false;
+
+    const stream = async () => {
+      let positions: Float32Array | null = null;
+      let colors: Float32Array | null = null;
+      let offset = 0;
+      setIsLoading("Loading point cloud...");
+
+      const batches = await loadInBatches("/api/big_cloud.cpt", CPTLoader);
+
+      for await (const batch of batches as AsyncIterable<CPTBatch>) {
+        if (cancelled) break;
+
+        if (!positions || !colors) {
+          positions = new Float32Array(batch.totalPointCount * 3);
+          colors = new Float32Array(batch.totalPointCount * 3);
+        }
+
+        const batchPointCount = batch.positions.length / 3;
+
+        positions.set(batch.positions, offset * 3);
+        colors.set(batch.colors, offset * 3);
+
+        offset += batchPointCount;
+
+        setData({
+          pointCount: offset,
+          positions: positions.subarray(0, offset * 3),
+          colors: colors.subarray(0, offset * 3),
+        });
+      }
+    };
+
+    stream()
+      .finally(() => {
+        setIsLoading(null);
       })
-      .finally(() => setIsLoading(null));
-  }, [debugMode]);
+      .catch((e) => {
+        throw new Error(`Failed to stream CPT data: ${e.message}`);
+      });
 
-  if (!data) return null;
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  if (!data) return null;
+  if (!data || data.pointCount === 0) return null;
 
   return (
-    <points position={[0, 0, 0]}>
+    <points>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
@@ -46,9 +79,10 @@ const CptPointsDemo = () => {
         />
         <bufferAttribute attach="attributes-color" args={[data.colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={1} vertexColors />
+
+      <pointsMaterial size={0.5} vertexColors />
     </points>
   );
 };
 
-export default CptPointsDemo;
+export default PointCloud;
