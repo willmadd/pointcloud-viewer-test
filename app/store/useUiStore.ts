@@ -1,3 +1,4 @@
+import { Vector3 } from "three";
 import { create } from "zustand";
 
 /**
@@ -9,6 +10,12 @@ type Loader = {
   percentage: number;
 } | null;
 
+type SelectedPoint = {
+  index: number;
+  position: Vector3;
+  color: Vector3;
+};
+
 interface UiStore {
   loader: Loader;
 
@@ -19,6 +26,8 @@ interface UiStore {
 
   debugMode: boolean;
   setDebugMode: (debug: boolean) => void;
+  selectedPoint: null | SelectedPoint;
+  setSelectedPoint: (selectedPoint: SelectedPoint | null) => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -46,4 +55,9 @@ export const useUiStore = create<UiStore>((set) => ({
 
   debugMode: false,
   setDebugMode: (debug) => set({ debugMode: debug }),
+  selectedPoint: null,
+  setSelectedPoint: (selectedPoint) =>
+    set({
+      selectedPoint,
+    }),
 }));

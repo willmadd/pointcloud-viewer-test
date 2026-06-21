@@ -7,7 +7,9 @@ import { PerfMonitor } from "r3f-monitor";
 import { useUiStore } from "../store/useUiStore";
 import LoadingSpinner from "./atoms/Loading";
 import Lighting from "./Lighting";
-
+import Camera from "./Camera";
+import * as THREE from "three";
+import SelectedPointModal from "./SelectedPointModal";
 /**
  * React Three Fiber Scene Set up
  */
@@ -17,11 +19,21 @@ const Scene = () => {
 
   return (
     <div className="h-screen w-screen bg-zinc-700">
+      <SelectedPointModal />
       {loader && <LoadingSpinner />}
-      <Canvas>
+      <Canvas
+        raycaster={{
+          params: {
+            Points: {
+              threshold: 0.1,
+            },
+          } as THREE.RaycasterParameters,
+        }}
+      >
         {debugMode && <PerfMonitor position="bottom-right" />}
         <PointCloud />
         <Lighting />
+        <Camera />
       </Canvas>
     </div>
   );
