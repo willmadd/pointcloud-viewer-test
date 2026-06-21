@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadInBatches } from "@loaders.gl/core";
-import { CPTLoader } from "../utils/CptLoader";
-import { useUiStore } from "../store/useUiStore";
 import { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
+
+import { CPTLoader } from "../utils/CptLoader";
+import { useUiStore } from "../store/useUiStore";
 
 type CPTBatch = {
   pointCount: number;
@@ -14,26 +15,45 @@ type CPTBatch = {
   colors: Float32Array;
 };
 
-type CPTData = {
-  pointCount: number;
+type Buffers = {
   positions: Float32Array;
   colors: Float32Array;
+  totalPointCount: number;
+};
+
+/**
+ * Mark a section of the buffer as changed so only that range
+ * is uploaded to the GPU instead of the entire buffer.
+ */
+
+const markAttributeRangeForUpdate = (
+  attribute: THREE.BufferAttribute,
+  offset: number,
+  count: number,
+) => {
+  attribute.addUpdateRange(offset, count);
+  attribute.needsUpdate = true;
 };
 
 const PointCloud = () => {
-  const [data, setData] = useState<CPTData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [buffers, setBuffers] = useState<Buffers | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+
+  const geometryRef = useRef<THREE.BufferGeometry>(null);
+  const pointsRef = useRef<THREE.Points>(null);
+
+  const loadedPointCountRef = useRef(0);
+
+  const selectedPointRef = useRef<{
+    index: number;
+    color: THREE.Vector3;
+  } | null>(null);
 
   const setLoading = useUiStore((state) => state.setLoading);
   const setSelectedPoint = useUiStore((state) => state.setSelectedPoint);
   const setLoadingPercentage = useUiStore(
     (state) => state.setLoadingPercentage,
   );
-
-  const selectedPoint = useUiStore((state) => state.selectedPoint);
-
-  const geometryRef = useRef<THREE.BufferGeometry>(null);
-  const pointsRef = useRef<THREE.Points>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,15 +66,19 @@ const PointCloud = () => {
       let positions: Float32Array | null = null;
       let colors: Float32Array | null = null;
       let offset = 0;
+
       setLoading({ message: "Loading point cloud...", percentage: 0 });
 
-      const batches = await loadInBatches("/api/small_cloud.cpt", CPTLoader);
+      const batches = await loadInBatches("/api/big_cloud.cpt", CPTLoader);
 
       for await (const batch of batches as AsyncIterable<CPTBatch>) {
         /**
          * If stream cancelled, break loop
          */
         if (cancelled) break;
+
+        const batchPointCount = batch.positions.length / 3;
+        const batchStartPoint = offset;
 
         /**
          * allocate memory for all points positions and colours
@@ -63,40 +87,77 @@ const PointCloud = () => {
         if (!positions || !colors) {
           positions = new Float32Array(batch.totalPointCount * 3);
           colors = new Float32Array(batch.totalPointCount * 3);
+
+          /**
+           * set buffers into array for first chunk only. in additional chunks we will update the existing buffers, rather than rerendering new buffers
+           */
+
+          setBuffers({
+            positions,
+            colors,
+            totalPointCount: batch.totalPointCount,
+          });
         }
 
-        positions.set(batch.positions, offset * 3);
-        colors.set(batch.colors, offset * 3);
+        positions.set(batch.positions, batchStartPoint * 3);
+        colors.set(batch.colors, batchStartPoint * 3);
 
         /**
          * increase point offset by batch length
          */
-        offset += batch.positions.length / 3;
+        offset += batchPointCount;
+        loadedPointCountRef.current = offset;
+
+        const geometry = geometryRef.current;
+
+        if (geometry) {
+          geometry.setDrawRange(0, offset);
+
+          const positionAttr = geometry.getAttribute(
+            "position",
+          ) as THREE.BufferAttribute;
+
+          const colorAttr = geometry.getAttribute(
+            "color",
+          ) as THREE.BufferAttribute;
+
+          /**
+           * Mark latest chunks as changed so Three.js uploads them to the GPU
+           */
+
+          markAttributeRangeForUpdate(
+            positionAttr,
+            batchStartPoint * 3,
+            batch.positions.length,
+          );
+
+          markAttributeRangeForUpdate(
+            colorAttr,
+            batchStartPoint * 3,
+            batch.colors.length,
+          );
+        }
 
         /**
          * update percentage loader
          */
-
         const percentage = Math.round((offset / batch.totalPointCount) * 100);
         setLoadingPercentage(percentage);
-
-        /**
-         * Update react with state portion of point cloud loaded in so far.
-         * subarray sued as it does not create new array, it creates a view into the existing array showing currently loaded points
-         */
-
-        setData({
-          pointCount: offset,
-          positions: positions.subarray(0, offset * 3),
-          colors: colors.subarray(0, offset * 3),
-        });
       }
     };
 
     stream()
-      .finally(() => setLoading(null))
       .catch((e) => {
-        throw new Error(`Failed to stream CPT data: ${e.message}`);
+        setError(
+          new Error(
+            `Failed to stream CPT data: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          ),
+        );
+      })
+      .finally(() => {
+        setLoading(null);
       });
 
     return () => {
@@ -105,22 +166,30 @@ const PointCloud = () => {
        */
       cancelled = true;
     };
-  }, []);
+  }, [setLoading, setLoadingPercentage]);
+
+  useEffect(() => {
+    const geometry = geometryRef.current;
+
+    if (!geometry) return;
+
+    geometry.setDrawRange(0, loadedPointCountRef.current);
+    geometry.computeBoundingSphere();
+  }, [buffers]);
 
   const handlePointClick = (event: ThreeEvent<MouseEvent>) => {
     /**
      * handle pointer click. I'm not completely happy with this. It kind of works ok, however ideally some kind of chunking would be good
+     * potentially there could be a huge number of points that it would have to iterate through.
      */
     event.stopPropagation();
 
     /**
      * Get all points that intersect click
      */
-    const intersections = event.intersections.filter((i, index) => {
-      return i.object === event.object && i.index !== undefined;
-    });
-
-    const closest = intersections[0];
+    const closest = event.intersections.find(
+      (i) => i.object === event.object && i.index !== undefined,
+    );
 
     /**
      * if nothing selected, return;
@@ -151,13 +220,18 @@ const PointCloud = () => {
     /**
      * Restore previous point colour
      */
-    if (selectedPoint) {
+    if (selectedPointRef.current) {
+      const previousIndex = selectedPointRef.current.index;
+      const previousColor = selectedPointRef.current.color;
+
       colorAttr.setXYZ(
-        selectedPoint.index,
-        selectedPoint.color.x,
-        selectedPoint.color.y,
-        selectedPoint.color.z,
+        previousIndex,
+        previousColor.x,
+        previousColor.y,
+        previousColor.z,
       );
+
+      markAttributeRangeForUpdate(colorAttr, previousIndex * 3, 3);
     }
 
     setSelectedPoint({
@@ -166,25 +240,38 @@ const PointCloud = () => {
       color: new THREE.Vector3(r, g, b),
     });
 
+    selectedPointRef.current = {
+      index,
+      color: new THREE.Vector3(r, g, b),
+    };
+
     /**
      * Colour selected point red
      */
     colorAttr.setXYZ(index, 1, 0, 0);
-    colorAttr.needsUpdate = true;
+    markAttributeRangeForUpdate(colorAttr, index * 3, 3);
   };
 
-  if (!data || data.pointCount === 0) return null;
+  if (error) throw error;
+  if (!buffers) return null;
 
   return (
     <points ref={pointsRef} onPointerDown={handlePointClick}>
       <bufferGeometry ref={geometryRef}>
         <bufferAttribute
           attach="attributes-position"
-          args={[data.positions, 3]}
+          args={[buffers.positions, 3]}
+          usage={THREE.DynamicDrawUsage}
         />
-        <bufferAttribute attach="attributes-color" args={[data.colors, 3]} />
+
+        <bufferAttribute
+          attach="attributes-color"
+          args={[buffers.colors, 3]}
+          usage={THREE.DynamicDrawUsage}
+        />
       </bufferGeometry>
-      <pointsMaterial size={0.5} vertexColors />
+
+      <pointsMaterial size={0.5} vertexColors sizeAttenuation />
     </points>
   );
 };
