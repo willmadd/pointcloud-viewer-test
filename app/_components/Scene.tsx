@@ -22,6 +22,9 @@ const Scene = () => {
       <SelectedPointModal />
       {loader && <LoadingSpinner />}
       <Canvas
+        /**
+         * Giving the points a hitslop so they can be raycasted
+         */
         raycaster={{
           params: {
             Points: {
