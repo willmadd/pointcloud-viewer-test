@@ -11,12 +11,14 @@ const DebugToggle = (props: Props) => {
   const setDebugMode = useUiStore((state) => state.setDebugMode);
 
   return (
-    <div className="absolute top-5 right-5 text-white rounded-full shadow p-1 pr-2 bg-zinc-900  ring-emerald-200 ring-1">
-      <Toggle
-        label={"Debug Mode"}
-        enabled={debugMode}
-        setEnabled={() => setDebugMode(!debugMode)}
-      />
+    <div className="absolute top-5 right-5 z-50">
+      <div className="rounded-xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
+        <Toggle
+          label={"Debug Mode"}
+          enabled={debugMode}
+          setEnabled={() => setDebugMode(!debugMode)}
+        />
+      </div>
     </div>
   );
 };

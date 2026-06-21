@@ -10,18 +10,18 @@ import LoadingSpinner from "./atoms/Loading";
 
 const Scene = () => {
   const debugMode = useUiStore((state) => state.debugMode);
-  const isLoading = useUiStore((state) => state.isLoading);
+  const loader = useUiStore((state) => state.loader);
 
   return (
     <div className="h-screen w-screen bg-zinc-700">
-      {isLoading && <LoadingSpinner label={"Loading point cloud"} />}
+      {(loader || true) && <LoadingSpinner />}
       <Canvas>
         {debugMode && <PerfMonitor position="bottom-right" />}
         <PointCloud />
         <ambientLight intensity={0.6} />
         <pointLight intensity={120} position={[10, 10, 10]} />
         <spotLight intensity={270} position={[-10, 10, -10]} />
-        <PerspectiveCamera makeDefault position={[0, 10, 500]} />
+        <PerspectiveCamera makeDefault position={[0, 0, 500]} />
 
         <OrbitControls target={[0, 0, 0]} enableDamping makeDefault />
       </Canvas>

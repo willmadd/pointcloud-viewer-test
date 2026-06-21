@@ -18,12 +18,9 @@ export default function Toggle({
         className="peer sr-only"
       />
 
-      <div
-        className=" relative h-5 w-9 rounded-full bg-gray-300 transition-colors peer-checked:bg-violet-700 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4  after:rounded-full after:bg-white after:transition-transform after:content-[''] peer-checked:after:translate-x-4
-        "
-      />
+      <div className="relative h-5 w-9 rounded-full bg-zinc-700 transition-colors peer-checked:bg-white  after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4  after:rounded-full after:bg-zinc-400 after:transition-transform after:content-[''] peer-checked:after:translate-x-4 peer-checked:after:bg-zinc-900" />
 
-      <span className="ml-3 text-sm font-medium">{label}</span>
+      <span className="ml-3 text-sm font-medium text-zinc-300">{label}</span>
     </label>
   );
 }

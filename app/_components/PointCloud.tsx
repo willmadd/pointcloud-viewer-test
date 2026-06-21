@@ -20,7 +20,10 @@ type CPTData = {
 
 const PointCloud = () => {
   const [data, setData] = useState<CPTData | null>(null);
-  const setIsLoading = useUiStore((state) => state.setLoading);
+  const setLoading = useUiStore((state) => state.setLoading);
+  const setLoadingPercentage = useUiStore(
+    (state) => state.setLoadingPercentage,
+  );
   useEffect(() => {
     let cancelled = false;
 
@@ -28,13 +31,12 @@ const PointCloud = () => {
       let positions: Float32Array | null = null;
       let colors: Float32Array | null = null;
       let offset = 0;
-      setIsLoading("Loading point cloud...");
+      setLoading({ message: "Loading point cloud...", percentage: 0 });
 
       const batches = await loadInBatches("/api/big_cloud.cpt", CPTLoader);
 
       for await (const batch of batches as AsyncIterable<CPTBatch>) {
         if (cancelled) break;
-
         if (!positions || !colors) {
           positions = new Float32Array(batch.totalPointCount * 3);
           colors = new Float32Array(batch.totalPointCount * 3);
@@ -47,6 +49,10 @@ const PointCloud = () => {
 
         offset += batchPointCount;
 
+        const percentage = Math.round((offset / batch.totalPointCount) * 100);
+
+        setLoadingPercentage(percentage);
+
         setData({
           pointCount: offset,
           positions: positions.subarray(0, offset * 3),
@@ -57,7 +63,7 @@ const PointCloud = () => {
 
     stream()
       .finally(() => {
-        setIsLoading(null);
+        setLoading(null);
       })
       .catch((e) => {
         throw new Error(`Failed to stream CPT data: ${e.message}`);

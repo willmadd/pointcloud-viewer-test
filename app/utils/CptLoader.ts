@@ -114,21 +114,25 @@ async function* parseCPTInBatches(
       for (let i = 0; i < pointsToParse; i++) {
         const base = i * POINT_BYTES;
 
-        const realX =
+        const worldX =
           view.getUint32(base + OFFSET_X, LITTLE_ENDIAN) * header.xScale +
           header.xOffset;
 
-        const realY =
+        const worldY =
           view.getUint32(base + OFFSET_Y, LITTLE_ENDIAN) * header.yScale +
           header.yOffset;
 
-        const realZ =
+        const worldZ =
           view.getUint32(base + OFFSET_Z, LITTLE_ENDIAN) * header.zScale +
           header.zOffset;
 
-        positions[i * 3 + 0] = realX - origin[0];
-        positions[i * 3 + 1] = realY - origin[1];
-        positions[i * 3 + 2] = realZ - origin[2];
+        const localX = worldX - origin[0];
+        const localY = worldY - origin[1];
+        const localZ = worldZ - origin[2];
+
+        positions[i * 3 + 0] = localX;
+        positions[i * 3 + 1] = localY;
+        positions[i * 3 + 2] = localZ;
 
         colors[i * 3 + 0] = view.getUint8(base + OFFSET_RED) / 255;
         colors[i * 3 + 1] = view.getUint8(base + OFFSET_GREEN) / 255;
